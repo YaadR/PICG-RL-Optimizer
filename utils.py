@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 import cv2
 import numpy as np
+from tqdm import tqdm
 
 
 def delete_all_files(directory):
@@ -38,7 +39,7 @@ def create_video_from_frames(frames_dir, output_video, frame_rate=20):
     num_frames = len(files)  # Count the number of files
     
     # Read the first frame to get dimensions
-    first_frame_path = os.path.join(frames_dir, 'frame_0.png')
+    first_frame_path = os.path.join(frames_dir, 'frame_00000.png')
     frame = cv2.imread(first_frame_path)
     
     if frame is None:
@@ -51,8 +52,8 @@ def create_video_from_frames(frames_dir, output_video, frame_rate=20):
     video_writer = cv2.VideoWriter(output_video, fourcc, frame_rate, (width, height))
     
     # Write each frame to the video
-    for i in range(num_frames):
-        frame_path = os.path.join(frames_dir, f'frame_{i}.png')
+    for i in tqdm(range(num_frames),desc="Video Producing:"):
+        frame_path = os.path.join(frames_dir, f'frame_{i:05}.png')
         frame = cv2.imread(frame_path)
         
         if frame is None:

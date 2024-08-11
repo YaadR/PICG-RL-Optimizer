@@ -26,16 +26,13 @@ def reward_calc_o(objective_prev,objective):
     if objective_prev == 0:
         return 0
 
-    diff = objective_prev-objective
-    diff = diff/(diff**2+1e-03)
-
-    if objective < 3:
-        return -1
-
     if abs(objective-6)<2:
         return objective
     
-    return float(diff) if diff > 0 else float(diff*2)
+    diff = objective_prev-objective
+    return  (4*diff)/(diff**2+1)+(1/(diff+1)) if diff>=0 else (diff)/((0.15*diff)**2+1)
+    
+    # return float(diff) if diff > 0 else float(diff*2)
 
 def reward_calc_t(vec,vec_prev,target=15):
     prev_dist = abs(target - consequtive_unique(vec_prev))
@@ -51,7 +48,7 @@ def reward_calc_t(vec,vec_prev,target=15):
 def reward_calc(s1,s2,o1,o2):
     r1 = reward_calc_o(o1,o2)
     r2 = reward_calc_t(s1,s2)
-    optional_reward.append(r2)
+    # optional_reward.append(r2)
     # return round((r1+r2)/2)
     return r1
 optional_reward = [0]
@@ -64,10 +61,10 @@ mp,xp,f,m,x0 = env.create_data()
 # Initialize RL agent:
 action_size = 6
 state_size = len(env.state)
-agent = Agent(state_size=state_size+2,action_size=action_size,sigma=0.2)
+agent = Agent(state_size=state_size+2,action_size=action_size,hidden_size=64,sigma=0.2)
 
 # Initialize the replay buffer
-replay_buffer = ReplayBuffer(capacity=1000)
+replay_buffer = ReplayBuffer(capacity=2500)
 replay_init = 100
 replay_scene_iteration = replay_init//5
 while replay_buffer.__len__()<replay_init:
@@ -83,8 +80,7 @@ while replay_buffer.__len__()<replay_init:
         action,policy = agent.get_action(state)
         next_state = env.step(action)
         done = 1 if iter == 50 else 0
-        # reward = reward_calc(next_state,state)
-        # reward = reward_calc(env.objective_prev,env.O(env.state,env.zero_state,env.delta,env.w))
+
         reward = reward_calc(next_state,state,env.objective_prev,env.O(env.state,env.zero_state,env.delta,env.w))
         
         next_state = np.concatenate((next_state, np.array([env.w,env.delta])))
@@ -94,12 +90,12 @@ while replay_buffer.__len__()<replay_init:
             break
 
 num_rounds = 300
-num_episodes = 15
+num_episodes = 20
 
 
 # Setting plots
 fig, ((ax1,ax3,ax5),(ax2,ax4,ax6)) = plt.subplots(2, 3, figsize=(12, 6))
-MAKE_VIDEO = False
+MAKE_VIDEO = True
 index = 0
 
 def update_plot():
@@ -115,8 +111,8 @@ def update_plot():
     ax2.relim()
     ax2.autoscale_view() 
 
-    # line4_1.set_data( np.arange(len(agent.entropy_array)), agent.entropy_array)
-    line4_1.set_data( np.arange(len(optional_reward)), optional_reward) 
+    line4_1.set_data( np.arange(len(agent.entropy_array)), agent.entropy_array)
+    # line4_1.set_data( np.arange(len(optional_reward)), optional_reward) 
     ax4.relim()
     ax4.autoscale_view() 
 
@@ -129,7 +125,7 @@ def update_plot():
     ax6.relim()
     ax6.autoscale_view() 
 
-    plt.pause(0.01)  # Pause to allow the plot to update
+    # plt.pause(0.01)  # Pause to allow the plot to update
 
 def initiate_plot():
     plt.cla()
@@ -143,8 +139,8 @@ def initiate_plot():
     ax1.set_title('delta', ha='left', va='top', fontsize=18, color='purple')
     ax2.set_title( 'w', ha='left', va='top', fontsize=18, color='blue')
     ax3.set_title(f"Generation: {i+1}")
-    # ax4.set_title("Policy Entropy")
-    ax4.set_title("Optional Reward")
+    ax4.set_title("Policy Entropy")
+    # ax4.set_title("Optional Reward")
     ax5.set_title("Cumulative Reward")
     # ax6.set_title("Reward")
     ax6.set_title("Objective Function")
@@ -157,8 +153,8 @@ def initiate_plot():
     line2_1, = ax2.plot( np.arange(len(env.w_array)), env.w_array, '-',color='blue')
     line3_2, = ax3.plot(m, x0, '-',color='orange')  
     line3_2, = ax3.plot( m, env.state, '-',color='green')
-    # line4_1, = ax4.plot( np.arange(len(agent.entropy_array)), agent.entropy_array, '-',color='green') 
-    line4_1, = ax4.plot( np.arange(len(optional_reward)), optional_reward, '-',color='green')
+    line4_1, = ax4.plot( np.arange(len(agent.entropy_array)), agent.entropy_array, '-',color='green') 
+    # line4_1, = ax4.plot( np.arange(len(optional_reward)), optional_reward, '-',color='green')
     line5_1, = ax5.plot( np.arange(len(cumulative_reward_array)), cumulative_reward_array, '-',color='orange')
     # line6_1, = ax6.plot( np.arange(len(reward_array)), reward_array, '-',color='pink')
     line6_1, = ax6.plot( np.arange(len(objective_array)), objective_array, '-',color='pink')
@@ -177,9 +173,8 @@ for i in range(num_episodes):
     dots,line1_1,line2_1,line3_2,line4_1,line5_1,line6_1 = initiate_plot()
 
     state = np.concatenate((state, np.array([env.w,env.delta])))
-    for j in tqdm(range(num_rounds), desc="Optimization:"):
+    for j in tqdm(range(num_rounds), desc=f"Optimization: {i+1:03}"):
     # for j in range(num_rounds):
-        
         
         state = np.array(state)
 
@@ -190,9 +185,14 @@ for i in range(num_episodes):
         objective_array.append(env.objective_prev)
 
         reward = reward_calc(next_state,state,env.objective_prev,env.O(env.state,env.zero_state,env.delta,env.w))
-        done = 1 if i == num_rounds-1 else 0
+        
+        if i == num_rounds-1:
+            done=1
+            reward = 20
+        else:
+            done = 0
 
-        if  max(state)-min(state)>2.1:
+        if  state.max()-state.min()>env.valid_range:
             done = 1
             reward = -25
 
@@ -212,19 +212,19 @@ for i in range(num_episodes):
         
         # Create a video frame
         if MAKE_VIDEO:
-            plt.savefig(f'frames/frame_{index}.png')  # Save each frame as an image
+            plt.savefig(f'frames/frame_{index:05}.png')  # Save each frame as an image
             index+=1
         update_plot()
 
+
         # Replay Batch Train
-        if done or (j%25==0):
+        if done or (j%10==0):
             # Sample from replay buffer and train the agent
             batch = replay_buffer.sample(batch_size=64)
             agent.train(*batch)
             if done:
                 break
 
-    # plt.plot(mp, xp, 'o', m, x0, '-', m, xi, '-')
 
 #%% Results
 

@@ -79,9 +79,9 @@ class Agent:
     def train(self, state, action, reward, next_state, done, alpha=0.5,gamma=0.99):
         state = torch.FloatTensor(state).to(self.device)
         action = torch.FloatTensor(action).to(self.device)
-        reward = torch.FloatTensor(np.array(reward)).to(self.device)
+        reward = torch.FloatTensor(np.array([reward])).to(self.device)
         next_state = torch.FloatTensor(next_state).to(self.device)
-        done = torch.FloatTensor(np.array(done)).to(self.device)
+        done = torch.FloatTensor([done]).to(self.device)
         # done = done
         if len(done.shape) > 1:
             reward = reward.view(-1, 1)  # Reshape to [128, 1] if necessary

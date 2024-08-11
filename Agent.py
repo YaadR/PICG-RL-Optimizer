@@ -46,7 +46,7 @@ class Net(nn.Module):
         return x
     
 class Agent:
-    def __init__(self, state_size, action_size, hidden_size=256, lr=5e-5,sigma=0.1):
+    def __init__(self, state_size, action_size, hidden_size=128, lr=5e-5,sigma=0.1):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.net = Net(state_size, action_size, hidden_size).to(self.device)
         self.target = Net(state_size, action_size, hidden_size).to(self.device)
@@ -83,9 +83,9 @@ class Agent:
     def train(self, state, action, reward, next_state, done,gamma=0.99):
         state = torch.FloatTensor(state).to(self.device).unsqueeze(0)
         action =torch.as_tensor(action,dtype=torch.int64).to(self.device).unsqueeze(0)
-        reward = torch.FloatTensor(np.array([reward])).to(self.device)
+        reward = torch.FloatTensor(np.array([reward])).to(self.device).unsqueeze(0)
         next_state = torch.FloatTensor(next_state).to(self.device).unsqueeze(0)
-        done = torch.FloatTensor(np.array([done])).to(self.device)
+        done = torch.FloatTensor(done).to(self.device).unsqueeze(0)
         # done = done
         if len(done.shape) > 1:
             reward = reward.view(-1, 1)  # Reshape to [128, 1] if necessary
@@ -95,7 +95,6 @@ class Agent:
         target_q_vals = self.target(next_state)
 
         max_target_q_vals = target_q_vals.max(dim=1, keepdim=True)[0]
-
         targets = reward + gamma * (1 - done) * max_target_q_vals
 
         #Compute Loss

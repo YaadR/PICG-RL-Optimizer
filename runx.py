@@ -13,8 +13,8 @@ import os
 #%%
 class Environment:
     def __init__(self, bls_atempts=10):
-        self.w = 0.01 # round(random.uniform(0.01, 0.1),3)
-        self.delta = 1e-2 #round(random.uniform(0.01, 0.1),3)
+        self.w = random.uniform(1e-03, 1e-02)
+        self.delta = random.uniform(1e-03, 1e-02)
         self.alpha = 1
         self.bls_atempts=bls_atempts
         self.G = grad(self.O)
@@ -31,10 +31,11 @@ class Environment:
         m = jnp.linspace(0, 10, num=50, endpoint=True)
 
         self.zero_state = f(m)
+        self.valid_range = (max(self.zero_state)-min(self.zero_state))*1.1
         self.objective_prev = 0
         self.state=f(m)
-        self.w = 0.01 # round(random.uniform(0.05, 0.25),3)
-        self.delta = 1e-2 # round(random.uniform(0.05, 0.25),3)
+        self.w = random.uniform(1e-03, 1e-02)
+        self.delta = random.uniform(1e-03, 1e-02)
         self.delta_array = [self.delta]
         self.w_array = [self.w]
 

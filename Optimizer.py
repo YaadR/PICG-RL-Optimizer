@@ -88,7 +88,7 @@ while replay_buffer.__len__()<replay_init:
         reward = reward_calc(next_state,state,env.objective_prev,env.O(env.state,env.zero_state,env.delta,env.w))
         
         next_state = np.concatenate((next_state, np.array([env.w,env.delta])))
-        replay_buffer.push(state, policy, reward, next_state, done)
+        replay_buffer.push(state, custom_argmax(policy), reward, next_state, done)
         state = next_state
         if done or (None in state):
             break
@@ -99,7 +99,7 @@ num_episodes = 15
 
 # Setting plots
 fig, ((ax1,ax3,ax5),(ax2,ax4,ax6)) = plt.subplots(2, 3, figsize=(12, 6))
-MAKE_VIDEO = True
+MAKE_VIDEO = False
 index = 0
 
 def update_plot():
@@ -186,19 +186,23 @@ for i in range(num_episodes):
         action,policy = agent.get_action(state)
         next_state = env.step(action)
 
+        # For plotting the objective score
         objective_array.append(env.objective_prev)
-        # reward = reward_calc(next_state,state)
-        # reward = reward_calc(env.objective_prev,env.O(env.state,env.zero_state,env.delta,env.w))
+
         reward = reward_calc(next_state,state,env.objective_prev,env.O(env.state,env.zero_state,env.delta,env.w))
         done = 1 if i == num_rounds-1 else 0
+
+        if  max(state)-min(state)>2.1:
+            done = 1
+            reward = -25
 
         next_state = np.concatenate((next_state, np.array([env.w,env.delta])))
 
         # Train Online
-        # agent.train(state, policy, reward, next_state, done)
+        # agent.train(state, custom_argmax(policy), reward, next_state, done)
         
         # Store experience in replay buffer
-        replay_buffer.push(state, policy, reward, next_state, done)
+        replay_buffer.push(state, custom_argmax(policy), reward, next_state, done)
 
         state  = next_state
 
@@ -217,7 +221,7 @@ for i in range(num_episodes):
             # Sample from replay buffer and train the agent
             batch = replay_buffer.sample(batch_size=64)
             agent.train(*batch)
-            if done or (max(state)-min(state)>2.5):
+            if done:
                 break
 
     # plt.plot(mp, xp, 'o', m, x0, '-', m, xi, '-')

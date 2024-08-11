@@ -23,6 +23,12 @@ class ReplayBuffer:
         batch = random.sample(self.buffer, min(batch_size,len(self.buffer)))
         state, action, reward, next_state, done = zip(*batch)
         return np.array(state), np.array(action), np.array(reward), np.array(next_state), np.array(done)
+
+    def train_sequence(self, batch_size):
+        batch = list(self.buffer)[-batch_size:]
+        state, action, reward, next_state, done = zip(*batch)
+        return np.array(state), np.array(action), np.array(reward), np.array(next_state), np.array(done)   
+
     
     def __len__(self):
         return len(self.buffer)    
@@ -31,11 +37,11 @@ class ReplayBuffer:
 
 
 class Net(nn.Module):
-    def __init__(self, input_size, output_size, hidden_size=128):
+    def __init__(self, input_size, output_size, hidden_size=[128,128]):
         super().__init__()
-        self.fc1 = nn.Linear(input_size, hidden_size)
-        self.fc2 = nn.Linear(hidden_size, hidden_size)
-        self.fc3 = nn.Linear(hidden_size, output_size)
+        self.fc1 = nn.Linear(input_size, hidden_size[0])
+        self.fc2 = nn.Linear(hidden_size[0], hidden_size[1])
+        self.fc3 = nn.Linear(hidden_size[1], output_size)
 
     def forward(self, x):
         x=self.fc1(x)

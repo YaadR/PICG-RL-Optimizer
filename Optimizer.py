@@ -61,25 +61,25 @@ mp,xp,f,m,x0 = env.create_data()
 # Initialize RL agent:
 action_size = 6
 state_size = len(env.state)
-agent = Agent(state_size=state_size+2,action_size=action_size,hidden_size=64,sigma=0.2)
+agent = Agent(state_size=state_size+2,action_size=action_size,hidden_size=[512,256],sigma=0.2)
 
 # Initialize the replay buffer
-replay_buffer = ReplayBuffer(capacity=2500)
-replay_init = 100
-replay_scene_iteration = replay_init//5
+replay_buffer = ReplayBuffer(capacity=1000)
+replay_init = 180
+replay_scene_iteration = replay_init//3
 while replay_buffer.__len__()<replay_init:
     iter=0
     env.reset()
     state = env.state
     state = np.concatenate((state, np.array([env.w,env.delta])))
-    while (replay_buffer.__len__()<replay_init) and iter<50:
+    while (replay_buffer.__len__()<replay_init) and iter<replay_scene_iteration:
         print(f"Replay Buffer Initialization {round(100*(replay_buffer.__len__()/replay_init))}%", end="\r") 
         iter+=1
         
         state = np.array(state)
         action,policy = agent.get_action(state)
         next_state = env.step(action)
-        done = 1 if iter == 50 else 0
+        done = 1 if iter == replay_scene_iteration-1 else 0
 
         reward = reward_calc(next_state,state,env.objective_prev,env.O(env.state,env.zero_state,env.delta,env.w))
         
@@ -89,13 +89,13 @@ while replay_buffer.__len__()<replay_init:
         if done or (None in state):
             break
 
-num_rounds = 300
-num_episodes = 20
+num_rounds = 500
+num_episodes = 150
 
 
 # Setting plots
 fig, ((ax1,ax3,ax5),(ax2,ax4,ax6)) = plt.subplots(2, 3, figsize=(12, 6))
-MAKE_VIDEO = True
+MAKE_VIDEO = False
 index = 0
 
 def update_plot():
@@ -188,7 +188,7 @@ for i in range(num_episodes):
         
         if i == num_rounds-1:
             done=1
-            reward = 20
+            reward = 50
         else:
             done = 0
 
@@ -198,11 +198,13 @@ for i in range(num_episodes):
 
         next_state = np.concatenate((next_state, np.array([env.w,env.delta])))
 
-        # Train Online
-        # agent.train(state, custom_argmax(policy), reward, next_state, done)
         
         # Store experience in replay buffer
         replay_buffer.push(state, custom_argmax(policy), reward, next_state, done)
+
+        # Train Online
+        batch = replay_buffer.train_sequence(batch_size=8)
+        agent.train(*batch)
 
         state  = next_state
 
@@ -214,11 +216,11 @@ for i in range(num_episodes):
         if MAKE_VIDEO:
             plt.savefig(f'frames/frame_{index:05}.png')  # Save each frame as an image
             index+=1
-        update_plot()
+        # update_plot()
 
 
         # Replay Batch Train
-        if done or (j%10==0):
+        if done or (j%50==0):
             # Sample from replay buffer and train the agent
             batch = replay_buffer.sample(batch_size=64)
             agent.train(*batch)

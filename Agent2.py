@@ -37,7 +37,7 @@ class ReplayBuffer:
 
 
 class Net(nn.Module):
-    def __init__(self, input_size, output_size, hidden_size=[128,128]):
+    def __init__(self, input_size, output_size, hidden_size=[128,256]):
         super().__init__()
         self.fc1 = nn.Linear(input_size, hidden_size[0])
         self.fc2 = nn.Linear(hidden_size[0], hidden_size[1])
@@ -50,6 +50,7 @@ class Net(nn.Module):
         x = F.relu(x)
         x = self.fc3(x)
         return x
+    
     
 class Agent:
     def __init__(self, state_size, action_size, hidden_size=128, lr=1e-3,sigma=0.1):
@@ -79,15 +80,15 @@ class Agent:
             self.current_entropy(probs1,probs2)
             weight_idx = np.random.choice(range(len(policy)//2), p=probs2)
 
-
         return [self.action_desk[delta_idx],self.action_desk[weight_idx]],policy.detach()
+    
 
-    def train(self, state, action, reward, next_state, done, alpha=0.5,gamma=0.99):
+    def train(self, state, action, reward, next_state, done, alpha=0.7,gamma=0.97):
         state = torch.FloatTensor(state).to(self.device)
         action = torch.FloatTensor(action).to(self.device)
         reward = torch.FloatTensor(np.array([reward])).to(self.device)
         next_state = torch.FloatTensor(next_state).to(self.device)
-        done = torch.FloatTensor([done]).to(self.device)
+        done = torch.FloatTensor(np.array([done])).to(self.device)
         # done = done
         if len(done.shape) > 1:
             reward = reward.view(-1, 1)  # Reshape to [128, 1] if necessary
@@ -104,3 +105,4 @@ class Agent:
         loss = self.criterion(state_value_prime, state_value)
         loss.backward()
         self.optimizer.step()
+

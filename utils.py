@@ -67,6 +67,47 @@ def create_video_from_frames(frames_dir, output_video, frame_rate=20):
     print(f"Video saved as {output_video}")
     delete_all_files(frames_dir)
 
+def create_video_from_frames_general(frames_dir, output_video, frame_rate=10):
+    # List all files in the directory and sort them
+    files = sorted(os.listdir(frames_dir))
+
+    # Ensure the directory is not empty
+    if not files:
+        raise ValueError("The directory is empty. No frames to create a video.")
+
+    # Get the full path of the first frame to read dimensions
+    first_frame_path = os.path.join(frames_dir, files[0])
+    frame = cv2.imread(first_frame_path)
+
+    if frame is None:
+        raise ValueError(f"The first frame {first_frame_path} could not be read. Check the frame path or format.")
+    
+    height, width, _ = frame.shape
+
+    # Define video writer object
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    directory, filename = os.path.split(output_video)
+    valid_name = get_unique_filename(directory, filename)
+    output_video = os.path.join(directory, valid_name)
+    video_writer = cv2.VideoWriter(output_video, fourcc, frame_rate, (width, height))
+    
+    # Write each frame to the video
+    for file_name in tqdm(files, desc="Video Producing:"):
+        frame_path = os.path.join(frames_dir, file_name)
+        frame = cv2.imread(frame_path)
+
+        if frame is None:
+            print(f"Warning: Frame {frame_path} could not be read. Skipping.")
+            continue
+
+        video_writer.write(frame)
+    
+    # Release video writer object
+    video_writer.release()
+    print(f"Video saved as {output_video}")
+
+    # delete_all_files(frames_dir)
+
 def custom_argmax(p):
     max_p = np.zeros_like(p)  # Initialize an array of zeros with the same shape as p
     
@@ -75,8 +116,9 @@ def custom_argmax(p):
     max_p[first_max_idx] = 1
     
     # Argmax for the second 3 elements
-    second_max_idx = np.argmax(p[3:]) + 3  # Add 3 to get the correct index in the original array
-    max_p[second_max_idx] = 1
+    # second_max_idx = np.argmax(p[3:]) + 3  # Add 3 to get the correct index in the original array
+    # second_max_idx = np.argmax(p[:3]) + 3  # Add 3 to get the correct index in the original array
+    # max_p[second_max_idx] = 1
     
     return max_p
 

@@ -31,13 +31,17 @@ class Environment:
         m = jnp.linspace(0, 10, num=50, endpoint=True)
 
         self.zero_state = f(m)
-        self.valid_range = (max(self.zero_state)-min(self.zero_state))*1.1
+        gap = (max(self.zero_state)-min(self.zero_state))
+        self.valid_range = [gap*1.1, gap*0.66]
         self.objective_prev = 0
         self.state=f(m)
         self.w = random.uniform(1e-03, 1e-02)
         self.delta = random.uniform(1e-03, 1e-02)
         self.delta_array = [self.delta]
         self.w_array = [self.w]
+
+    def scaler(self,e):
+        return (e * 50).round().astype(int)
 
     # Creating data
     def create_data(self):
@@ -73,7 +77,7 @@ class Environment:
     def step(self, action):
         self.objective_prev = self.O(self.state,self.zero_state,self.delta,self.w)
         self.delta*=action[0]
-        self.w*= action[1]  
+        self.w*= action[1] 
         self.delta_array.append(self.delta) 
         self.w_array.append(self.w)
         d = -self.G(self.state, self.zero_state, self.delta, self.w)

@@ -1,5 +1,5 @@
 #%%
-from Agent import Agent,ReplayBuffer,deque
+from Agent2 import Agent,ReplayBuffer,deque
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -14,7 +14,7 @@ import warnings
 #%% Reward calculations
 def consequtive_unique(vec):
     count=1
-    vec = [round(element, 3) for element in vec]
+    vec = [round(element,1) for element in vec]
     for i in range(1, len(vec)):
         if vec[i] == vec[i - 1]:
             pass
@@ -25,32 +25,28 @@ def consequtive_unique(vec):
 def reward_calc_o(objective_prev,objective):
     if objective_prev == 0:
         return 0
+    return -objective/10
 
-    if abs(objective-6)<2:
-        return objective
-    
-    diff = objective_prev-objective
-    return  (4*diff)/(diff**2+1)+(1/(diff+1)) if diff>=0 else (diff)/((0.15*diff)**2+1)
-    
-    # return float(diff) if diff > 0 else float(diff*2)
 
-def reward_calc_t(vec,vec_prev,target=15):
-    prev_dist = abs(target - consequtive_unique(vec_prev))
-    dist = abs(target - consequtive_unique(vec))
-    direction = (prev_dist - dist)
-    if dist<5 :
-        return 5    
-    if direction >= 0:
-        return 1   #*np.float32(((target*2)/(abs(dist)+1))) 
-    elif direction < 0:
-        return -1  #*np.float32(((target*2)/(abs(dist)+1))) 
+def reward_calc_t(st,st_prev,target=20):
+    prev_dist = abs(target - consequtive_unique(st_prev))
+    dist = abs(target - consequtive_unique(st))
+    # direction = prev_dist - dist
+    # print(dist)
+    if dist<15:
+        return 1
+    elif dist<5 :
+        return 10    
+    else:
+        return 0 
 
 def reward_calc(s1,s2,o1,o2):
     r1 = reward_calc_o(o1,o2)
     r2 = reward_calc_t(s1,s2)
-    # optional_reward.append(r2)
+    optional_reward.append(r2)
     # return round((r1+r2)/2)
-    return r1
+    return r2
+
 optional_reward = [0]
 #%% Initializations:
 
@@ -60,18 +56,20 @@ mp,xp,f,m,x0 = env.create_data()
 
 # Initialize RL agent:
 action_size = 6
+time_stamp = 1
+parameters_size = 2
 state_size = len(env.state)
-agent = Agent(state_size=state_size+2,action_size=action_size,hidden_size=[512,256],sigma=0.2)
+agent = Agent(state_size=state_size+parameters_size+time_stamp,action_size=action_size,hidden_size=[128,256],sigma=0.2,lr=3e-04)
 
 # Initialize the replay buffer
-replay_buffer = ReplayBuffer(capacity=1000)
+replay_buffer = ReplayBuffer(capacity=2500)
 replay_init = 180
 replay_scene_iteration = replay_init//3
 while replay_buffer.__len__()<replay_init:
     iter=0
     env.reset()
     state = env.state
-    state = np.concatenate((state, np.array([env.w,env.delta])))
+    state = env.scaler(np.concatenate((state, np.array([env.w,env.delta,0]))))
     while (replay_buffer.__len__()<replay_init) and iter<replay_scene_iteration:
         print(f"Replay Buffer Initialization {round(100*(replay_buffer.__len__()/replay_init))}%", end="\r") 
         iter+=1
@@ -83,14 +81,14 @@ while replay_buffer.__len__()<replay_init:
 
         reward = reward_calc(next_state,state,env.objective_prev,env.O(env.state,env.zero_state,env.delta,env.w))
         
-        next_state = np.concatenate((next_state, np.array([env.w,env.delta])))
+        next_state = np.concatenate([env.scaler(np.concatenate((next_state, np.array([env.w,env.delta])))),[iter]])
         replay_buffer.push(state, custom_argmax(policy), reward, next_state, done)
         state = next_state
         if done or (None in state):
             break
 
-num_rounds = 500
-num_episodes = 150
+num_rounds = 1200
+num_episodes = 500
 
 
 # Setting plots
@@ -111,8 +109,8 @@ def update_plot():
     ax2.relim()
     ax2.autoscale_view() 
 
-    line4_1.set_data( np.arange(len(agent.entropy_array)), agent.entropy_array)
-    # line4_1.set_data( np.arange(len(optional_reward)), optional_reward) 
+    # line4_1.set_data( np.arange(len(agent.entropy_array)), agent.entropy_array)
+    line4_1.set_data( np.arange(len(optional_reward)), optional_reward) 
     ax4.relim()
     ax4.autoscale_view() 
 
@@ -139,8 +137,8 @@ def initiate_plot():
     ax1.set_title('delta', ha='left', va='top', fontsize=18, color='purple')
     ax2.set_title( 'w', ha='left', va='top', fontsize=18, color='blue')
     ax3.set_title(f"Generation: {i+1}")
-    ax4.set_title("Policy Entropy")
-    # ax4.set_title("Optional Reward")
+    # ax4.set_title("Policy Entropy")
+    ax4.set_title("Optional Reward")
     ax5.set_title("Cumulative Reward")
     # ax6.set_title("Reward")
     ax6.set_title("Objective Function")
@@ -172,7 +170,7 @@ for i in range(num_episodes):
     optional_reward = deque(maxlen=80)
     dots,line1_1,line2_1,line3_2,line4_1,line5_1,line6_1 = initiate_plot()
 
-    state = np.concatenate((state, np.array([env.w,env.delta])))
+    state = env.scaler(np.concatenate((state, np.array([env.w,env.delta,0]))))
     for j in tqdm(range(num_rounds), desc=f"Optimization: {i+1:03}"):
     # for j in range(num_rounds):
         
@@ -184,6 +182,8 @@ for i in range(num_episodes):
         # For plotting the objective score
         objective_array.append(env.objective_prev)
 
+        next_state = np.concatenate([env.scaler(np.concatenate((next_state, np.array([env.w,env.delta])))),[j]])
+
         reward = reward_calc(next_state,state,env.objective_prev,env.O(env.state,env.zero_state,env.delta,env.w))
         
         if i == num_rounds-1:
@@ -192,13 +192,11 @@ for i in range(num_episodes):
         else:
             done = 0
 
-        if  state.max()-state.min()>env.valid_range:
+        gap = state[:-1].max()-state[:-1].min()
+        if  gap>env.valid_range[0]*50 or gap<env.valid_range[1]*50:
             done = 1
-            reward = -25
+            reward = -15
 
-        next_state = np.concatenate((next_state, np.array([env.w,env.delta])))
-
-        
         # Store experience in replay buffer
         replay_buffer.push(state, custom_argmax(policy), reward, next_state, done)
 
@@ -213,8 +211,9 @@ for i in range(num_episodes):
         cumulative_reward_array.append(sum(reward_array))
         
         # Create a video frame
-        if MAKE_VIDEO:
-            plt.savefig(f'frames/frame_{index:05}.png')  # Save each frame as an image
+        if MAKE_VIDEO or j>num_rounds*0.5:
+            update_plot()
+            plt.savefig(f'frames/frame_{index:05}_{i}.png')  # Save each frame as an image
             index+=1
         # update_plot()
 
@@ -222,10 +221,12 @@ for i in range(num_episodes):
         # Replay Batch Train
         if done or (j%50==0):
             # Sample from replay buffer and train the agent
-            batch = replay_buffer.sample(batch_size=64)
-            agent.train(*batch)
+            # batch = replay_buffer.sample(batch_size=64)
+            # agent.train(*batch)
+            update_plot()
             if done:
                 break
+            
 
 
 #%% Results

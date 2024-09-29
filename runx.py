@@ -20,10 +20,10 @@ class Environment:
         self.G = grad(self.O)
         self.delta_array = []
         self.w_array = []
+        self.terminal_counter = 0
+        self.terminal_consecutive_index = 0
         self.reset()
         
-
-
     def reset(self):
         mp = jnp.linspace(0, 10, num=11, endpoint=True)
         xp = jnp.cos(-mp**2/9.0)
@@ -39,6 +39,8 @@ class Environment:
         self.delta = random.uniform(1e-03, 1e-02)
         self.delta_array = [self.delta]
         self.w_array = [self.w]
+        self.terminal_counter = 0
+        self.terminal_consecutive_index = 0
 
     def scaler(self,e):
         return (e * 50).round().astype(int)
@@ -86,6 +88,29 @@ class Environment:
         next_state = np.array(xi)
 
         return next_state
+
+    def terminal_state(self,index,reward,num_rounds,state,state_new,objective):
+        if self.terminal_consecutive_index==0:
+            self.terminal_consecutive_index = index-1
+
+        if index == num_rounds-1:
+            done=1
+            reward = 50
+            return reward,done
+        elif (np.mean((state-state_new) ** 2)<0.4) and (objective < 4.5) and (index == self.terminal_consecutive_index +1):
+            self.terminal_consecutive_index = index
+            self.terminal_counter+=1
+            done=0
+            if self.terminal_counter>=50:
+                print("Success!")
+                done=1
+                reward = 50
+                return reward,done
+        else:
+            done = 0
+            self.terminal_consecutive_index = 0
+            self.terminal_counter=0
+        return reward,done
 
   #%%
 

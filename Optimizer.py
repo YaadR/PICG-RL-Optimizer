@@ -11,7 +11,7 @@ import warnings
 # Ignore all warnings
 # warnings.filterwarnings("ignore")
 
-#%% Reward calculations
+# Reward calculations
 def consequtive_unique(vec):
     count=1
     vec = [round(element,1) for element in vec]
@@ -45,19 +45,20 @@ def reward_calc(s1,s2,o1,o2):
     r2 = reward_calc_t(s1,s2)
     optional_reward.append(r2)
     # return round((r1+r2)/2)
+
     return r2
 
 optional_reward = [0]
-#%% Initializations:
+# Initializations:
 
 # Initialize Environment:
 env = Environment()
 mp,xp,f,m,x0 = env.create_data()
 
 # Initialize RL agent:
-action_size = 6
-time_stamp = 1
-parameters_size = 2
+action_size = 6 # Action Space
+time_stamp = 1 # Time as iteration number for agent context
+parameters_size = 2 # As part of q(s,a) - a - is the action so I insteed inserts the delta and w parameters
 state_size = len(env.state)
 agent = Agent(state_size=state_size+parameters_size+time_stamp,action_size=action_size,hidden_size=[128,256],sigma=0.2,lr=3e-04)
 
@@ -79,24 +80,26 @@ while replay_buffer.__len__()<replay_init:
         next_state = env.step(action)
         done = 1 if iter == replay_scene_iteration-1 else 0
 
+        next_state = np.concatenate([env.scaler(np.concatenate((next_state, np.array([env.w,env.delta])))),[iter]])
+
         reward = reward_calc(next_state,state,env.objective_prev,env.O(env.state,env.zero_state,env.delta,env.w))
         
-        next_state = np.concatenate([env.scaler(np.concatenate((next_state, np.array([env.w,env.delta])))),[iter]])
         replay_buffer.push(state, custom_argmax(policy), reward, next_state, done)
         state = next_state
         if done or (None in state):
             break
 
-num_rounds = 1200
+num_rounds = 1000
 num_episodes = 500
 
 
 # Setting plots
 fig, ((ax1,ax3,ax5),(ax2,ax4,ax6)) = plt.subplots(2, 3, figsize=(12, 6))
 MAKE_VIDEO = False
+PLOT_GRAPHS = False
 index = 0
 
-def update_plot():
+def update_plot(PLOT_GRAPHS=False):
     line3_2.set_data(m, env.state)  
     ax3.relim()  # Update the limits of the axes
     ax3.autoscale_view()  # Autoscale the axes
@@ -123,7 +126,7 @@ def update_plot():
     ax6.relim()
     ax6.autoscale_view() 
 
-    # plt.pause(0.01)  # Pause to allow the plot to update
+    plt.pause(0.01)  # Pause to allow the plot to update
 
 def initiate_plot():
     plt.cla()
@@ -159,7 +162,7 @@ def initiate_plot():
 
     return dots,line1_1,line2_1,line3_2,line4_1,line5_1,line6_1
 
-#%% Training loop
+# Training loop
 for i in range(num_episodes):
     env.reset()
     state = env.state
@@ -185,13 +188,16 @@ for i in range(num_episodes):
         next_state = np.concatenate([env.scaler(np.concatenate((next_state, np.array([env.w,env.delta])))),[j]])
 
         reward = reward_calc(next_state,state,env.objective_prev,env.O(env.state,env.zero_state,env.delta,env.w))
-        
-        if i == num_rounds-1:
-            done=1
-            reward = 50
-        else:
-            done = 0
 
+        reward,done = env.terminal_state(index=j,reward=reward,num_rounds=num_rounds,state=state,state_new=next_state,objective=env.O(env.state,env.zero_state,env.delta,env.w))
+
+        # if index == num_rounds-1:
+        #     done=1
+        #     reward = 50
+        # else:
+        #     done = 0
+
+        # Make sure the optimization is with in predefine bounderies, otherwise terminate
         gap = state[:-1].max()-state[:-1].min()
         if  gap>env.valid_range[0]*50 or gap<env.valid_range[1]*50:
             done = 1
@@ -223,7 +229,7 @@ for i in range(num_episodes):
             # Sample from replay buffer and train the agent
             # batch = replay_buffer.sample(batch_size=64)
             # agent.train(*batch)
-            update_plot()
+            # update_plot()
             if done:
                 break
             
